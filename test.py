@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import os
 from export import *
 
+# Dedicated to the testing of functions from export.py
+
 tests_getdat = '/home/errorochka/Dropbox/DESY/pyXSW/tests/get_dat/'
 tests_getgrd = '/home/errorochka/Dropbox/DESY/pyXSW/tests/get_grd'
 
