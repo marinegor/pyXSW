@@ -14,7 +14,7 @@ table = '/home/errorochka/Dropbox/DESY/pyXSW/tests/optimization/SGS_highhum_K.gr
 params = get_initials(initials)
 theta, real_data = get_dat(theta)
 table_opt = get_grd(table)
-
+# pass
 out = minimize(gaussian_residual, params, args=(table_opt, theta, real_data))
 
 Model = intensity(table_opt, theta,
