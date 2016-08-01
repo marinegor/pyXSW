@@ -8,7 +8,7 @@ import os
 # Functions dedicated to data export from .dat, .grd and .inp files.
 
 
-def get_dat(name):
+def get_dat(name, normalize=False, bragg=0):
     """
     # Reads the name file and returns a tuple of values in it.
     # Columns must follow one of the following orders:
@@ -16,9 +16,22 @@ def get_dat(name):
     # angle   signal
     # angle   signal  signal_error
     # angle   signal  angle_error signal_error
+    :param bragg: must be provided, if 'normalize=True'
+    :param normalize: 'True', if you want to divide intensity by sin(theta_bragg + theta_exp) for each theta_exp.
+    However, for that you have to provide 'bragg' parameter. If it is 0 for your data, please put 1e-9 instead
+    of 0 (will not affect calculations, but good for coding).
     :param name: filename
     :return: tuple of values
     """
+
+    if normalize:
+        if bragg == 0:
+            raise ValueError('Bragg angle must be provided (put 1e-9 instead of 0)')
+        else:
+            pass
+    else:
+        bragg = 0
+
     fin = open(name).read().replace(',', '.').split('\n')  # replace commas by dots to convert to float then
     if fin[-1] == []:
         fin = fin[:-1]
@@ -43,19 +56,28 @@ def get_dat(name):
         raise ValueError('.dat file must contain at least two columns')
 
     elif columns == 2:
-        x = [elem[0] for elem in fin if elem]
-        y = [elem[1] for elem in fin if elem]
+        x = [elem[0]+bragg for elem in fin if elem]
+        if normalize:
+            y = [elem[1]/np.sin(np.deg2rad(elem[0]+bragg)) for elem in fin if elem]
+        else:
+            y = [elem[1] for elem in fin if elem]
         answ = x, y
 
     elif columns == 3:
-        x = [elem[0] for elem in fin if elem]
-        y = [elem[1] for elem in fin if elem]
+        x = [elem[0]+bragg for elem in fin if elem]
+        if normalize:
+            y = [elem[1]/np.sin(elem[0]+bragg) for elem in fin if elem]
+        else:
+            y = [elem[1] for elem in fin if elem]
         xerror = [elem[2] for elem in fin if elem]
         answ = x, y, xerror
 
     elif columns == 4:
-        x = [elem[0] for elem in fin if elem]
-        y = [elem[1] for elem in fin if elem]
+        x = [elem[0]+bragg for elem in fin if elem]
+        if normalize:
+            y = [elem[1]/np.sin(elem[0]+bragg) for elem in fin if elem]
+        else:
+            y = [elem[1] for elem in fin if elem]
         xerror = [elem[2] for elem in fin if elem]
         yerror = [elem[3] for elem in fin if elem]
         answ = x, y, xerror, yerror

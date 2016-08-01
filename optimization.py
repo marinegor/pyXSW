@@ -6,12 +6,12 @@ import os
 from export import get_grd, get_dat
 
 
-def intensity(table, angles, amplitude, sigma, x0, angle_slope, bragg=0, zmin=0, zmax=100):
+def intensity(table, angles, amplitude, sigma, x0, angle_slope=0, bragg=0, zmin=0, zmax=100):
     """
     Considers a distribution of atoms as 1 gaussian peak q = amplitude*exp(-(x-x0)**2/2sigma**2).
 
     Gives I(theta) for a given theta range. If 'bragg' is given, substitutes it from each angle during
-    calculations (useful, when experimental 'angles' are adjusted to the bragg angle. Please, check
+    calculations (useful, when experimental 'angles' are adjusted to the bragg angle). Please, check
     Stepanov's server output in reflection calculation or experimental data to find it.
 
     I(theta) = sum_over_z(gaussian(z)*standing_wave_table(theta, z))
@@ -50,10 +50,10 @@ def intensity(table, angles, amplitude, sigma, x0, angle_slope, bragg=0, zmin=0,
 def gaussian_residual(params, table, angles, data):
     """
     A residual function for one-gaussian approximation of data
-    :param data: experimental data
-    :param angles: angles range from experiment
-    :param table: table from Stepanov's server
-    :param params: must contain 'sigma', 'amplitude' and 'x0' values at least
+    :param data: np.array() experimental data (use get_dat(filename.dat) to get one)
+    :param angles: np.array() angles range from experiment (use get_dat(filename.dat) to get one)
+    :param table: np.array() table from Stepanov's server (use get_grd(filename.grd) to get)
+    :param params: dictionary; must contain 'sigma', 'amplitude' and 'x0' values at least
     :rtype: np.array, shape=(len(angles),)
     """
     try:
