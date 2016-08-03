@@ -140,15 +140,6 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
     :param name: filename
     :return: tuple of values
     """
-# TODO: add the oportunity to add a bragg without normalizing
-
-    if normalize:
-        if bragg == 0:
-            raise ValueError('Bragg angle must be provided (put 1e-9 instead of 0)')
-        else:
-            pass
-    else:
-        bragg = 0
 
     fin = open(name).read().replace(',', '.').split('\n')  # replace commas by dots to convert to float then
 

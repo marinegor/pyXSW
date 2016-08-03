@@ -82,9 +82,41 @@ def gaussian_residual(params, table, angles, data, errors=None):
     except KeyError:
         zmax = 100
 
+    # params.pretty_print()
+
     model = intensity(table, angles, amplitude, sigma, x0, angle_slope, bragg, zmin, zmax)
     if errors is not None:
-        return (data-model)**2 / errors
+        return (data-model)**2 / errors     # that must be chi-squared criteria with errors
+        print("CHI SQUARED")
     else:
-        return (data-model)**2 / data
+        return (data-model)**2 / data      # and without those
+        print("I AM FUCKING HERE")
 
+
+def initial_conditions_list(x, xmin, xmax, period):
+    """
+    Returns largest set of arifmetic progressions with given period, included element and within given limits
+    :param period: period of progression
+    :param xmax: minimum value
+    :param xmin: maximum value
+    :param x: float() included element
+    :rtype: np.array() with possible conditions
+    """
+    if xmax < xmin:
+        raise ValueError('xmin=%f > xmax=%f' % (xmin, xmax))
+    if x < xmin:
+        raise ValueError('x=%f < xmin=%f' % (x, xmin))
+    if x > xmax:
+        raise ValueError('x=%f > xmax=%f' % (x, xmax))
+
+    answ = list()
+    while x > xmin:
+        x -= period
+
+    x += period
+
+    while x < xmax:
+        answ.append(x)
+        x += period
+
+    return np.array(answ)
