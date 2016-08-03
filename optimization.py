@@ -1,9 +1,5 @@
 from __future__ import print_function
 import numpy as np
-import matplotlib.pyplot as plt
-from lmfit import minimize, Parameters
-import os
-from export import get_grd, get_dat
 
 
 def intensity(table, angles, amplitude, sigma, x0, angle_slope=0, bragg=0, zmin=0, zmax=100):
@@ -36,8 +32,8 @@ def intensity(table, angles, amplitude, sigma, x0, angle_slope=0, bragg=0, zmin=
 
     I = np.zeros(n)
     z = np.linspace(zmin, zmax, distances)
-
-    gauss = lambda coord, angle: (amplitude + angle_slope*(angle-bragg))*np.exp(-(coord-x0)**2 / 2.0 / sigma**2)
+    # angle dependency went to data exporting
+    gauss = lambda coord, angle: (amplitude + angle_slope*angle)*np.exp(-(coord-x0)**2 / 2.0 / sigma**2)
 
     gaussian = [[gauss(coord, angle) for coord in z] for angle in angles]
     ibar = gaussian*table
@@ -47,9 +43,10 @@ def intensity(table, angles, amplitude, sigma, x0, angle_slope=0, bragg=0, zmin=
     return I
 
 
-def gaussian_residual(params, table, angles, data):
+def gaussian_residual(params, table, angles, data, errors=None):
     """
     A residual function for one-gaussian approximation of data
+    :param errors: optional array including errors of the data
     :param data: np.array() experimental data (use get_dat(filename.dat) to get one)
     :param angles: np.array() angles range from experiment (use get_dat(filename.dat) to get one)
     :param table: np.array() table from Stepanov's server (use get_grd(filename.grd) to get)
@@ -86,5 +83,8 @@ def gaussian_residual(params, table, angles, data):
         zmax = 100
 
     model = intensity(table, angles, amplitude, sigma, x0, angle_slope, bragg, zmin, zmax)
+    if errors is not None:
+        return (data-model)**2 / errors
+    else:
+        return (data-model)**2 / data
 
-    return abs((data-model))
