@@ -6,7 +6,6 @@ import os
 
 # Functions dedicated to data export from .dat, .grd and .inp files.
 
-
 def get_initials(name):
     """
     Written to simplify input for several experiments on single substrate
@@ -52,7 +51,7 @@ def get_initials(name):
 
         if len(args) == 1:
             try:
-               num_answ.add(name, value=float(value))
+                num_answ.add(name, value=float(value))
             except ValueError:
                 str_answ[name] = value
 
@@ -89,41 +88,11 @@ def get_initials(name):
                         raise ValueError("Check 'max=' in %s" % string)
 
             num_answ.add(name, value=float(value), vary=vary, min=minimum, max=maximum)
-            #
-            #
-            #
-            #
-            # if 'vary' in args.keys():
-            #     if args['vary'] == 'false':
-            #         vary = False
-            #     elif args['vary'] == 'true':
-            #         vary = True
-            #     else:
-            #         raise ValueError('Check vary= in %s'%string)
-            # else:
-            #     vary = True
-            #
-            # if 'min' in args.keys():
-            #     try:
-            #         minimum = float(args['min'])
-            #     except:
-            #         raise ValueError('Check min= in %s'%string)
-            # else:
-            #     minimum = None
-            #
-            # if 'max' in args.keys():
-            #     try:
-            #         maximum = float(args['max'])
-            #     except:
-            #         raise ValueError('Check max= in %s'%string)
-            # else:
-            #     maximum = None
-            # answ.add(name, value=float(value), vary=vary, min=minimum, max=maximum)
-
     return num_answ, str_answ
 
 
 def get_dat(name, normalize=False, bragg=0, template='xy'):
+    # TODO: test correct export with different data templates
     """
     # Reads the name file and returns a tuple of values in it.
     # Columns must follow one of the following orders:
@@ -132,6 +101,9 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
     # angle   signal1 signal2                   'xyy'
     # angle   signal  signal_error              'xyyerr'
     # angle   angle_error   signal  signal_error 'xxerryyerr'
+
+    Comment strings start with '#'
+
     :param template: type of data in columns. Can be 'xy', 'xyyerr', 'xxyy' or 'xyy'
     :param bragg: must be provided, if 'normalize=True'
     :param normalize: 'True', if you want to divide intensity by sin(theta_bragg + theta_exp) for each theta_exp.
@@ -142,21 +114,7 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
     """
 
     fin = open(name).read().replace(',', '.').split('\n')  # replace commas by dots to convert to float then
-
-    fin = [elem for elem in fin if elem]    # delete empty strings
-
-    try:  # check if we have a header
-        thereisnoheader = [float(i) for i in fin[0].split()]
-    except ValueError:
-        thereisnoheader = False
-
-    try:
-        if thereisnoheader:
-            fin = [[float(i) for i in elem.split()] for elem in fin]
-        else:
-            fin = [[float(i) for i in elem.split()] for elem in fin[1:]]
-    except ValueError:
-        raise ValueError('.dat file must contain maximum one header')
+    fin = [elem for elem in fin if elem[0] != '#']    # delete comment strings
 
     columns = len(fin[0])
     fin = np.array(fin)
@@ -165,27 +123,27 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
         raise ValueError('.dat file must contain at least two columns')
 
     x = np.array([elem[0]+bragg for elem in fin])
+    y = np.array([elem[1] for elem in fin])
 
     try:
         if template == 'xy':
             if normalize:
-                y = np.array([elem[1]/np.sin(np.deg2rad(elem[0]+bragg)) for elem in fin])
+                y = y / np.sin(np.deg2rad(x))
             else:
-                y = np.array([elem[1] for elem in fin])
+                pass
             answ = x, y
 
         elif template == 'xyyerr':
             if normalize:
-                y = [elem[1]/np.sin(np.deg2rad(elem[0])+bragg) for elem in fin]
+                y = y / np.sin(np.deg2rad(x))
             else:
-                y = [elem[1] for elem in fin]
-            yerror = [elem[2] for elem in fin]
-            answ = x, np.array(y), np.array(yerror)
+                pass
+            yerror = np.array([elem[2] for elem in fin])
+            answ = x, y, yerror
 
         elif template == 'xyy':
             y1 = np.array([elem[1] for elem in fin])
             y2 = np.array([elem[2] for elem in fin])
-
             y = y1 + y2 / 2.0
             yerror = np.abs(y - y1)
 
@@ -197,15 +155,21 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
             answ = x, y, yerror
 
         elif template == 'xxerryyerr':
-            x = np.array([elem[0] for elem in fin])
-            y = np.array([elem[1] for elem in fin])
             xerror = np.array([elem[2] for elem in fin])
             yerror = np.array([elem[3] for elem in fin])
+
+            if normalize:
+                y = y / np.sin(np.deg2rad(x))
+            else:
+                pass
+
+            answ = x, y, xerror, yerror
+
         else:
-            raise ValueError("Please check 'template' in %" % name)
+            raise ValueError('Check the "template" parameter')
 
     except ValueError:
-        raise ValueError('Check the relation between template and columns')
+        raise ValueError('Check the "template" parameter')
 
     return np.array(answ)
 
@@ -223,7 +187,7 @@ def get_grd(name):
         raise ValueError('Must be the .grd file')
 
     temp_name = name[:-4] + '_table.grd'
-    fin = open(name).read().split('\n')[5:]
+    fin = open(name).read().split('\n')[5:]     # removes first 5 lines, assuming grd file as x-server's output
     fout = open(temp_name, mode='w')  # writes only a table to name_table.grd to prevent overwriting
 
     print(*fin, sep='\n', file=fout)
