@@ -36,8 +36,8 @@ def get_initials(name):
         raise ValueError('Must be .prm file')
 
     fin = open(name).read().split('\n')
-    num_answ = Parameters()
-    str_answ = dict()
+    num_answ = Parameters()     # numeric parameters -- lmfit format, will be used for fitting
+    str_answ = dict()       # string parameters -- ordinary dictionary
 
     for string in fin:
         string = string.replace(',', '')
@@ -49,45 +49,67 @@ def get_initials(name):
         args = [elem.split('=') for elem in string.split()]
         name, value = args[0]
 
+        numeric = True
+
+        try:
+            value = float(value)
+        except ValueError:
+            numeric = False
+
         if len(args) == 1:
-            try:
-                num_answ.add(name, value=float(value))
-            except ValueError:
+
+            vary = True
+            if name == 'zmin' or name == 'zmax':
+                vary = False
+            elif name == 'angle_slope':
+                vary = True
+            if numeric:
+                num_answ.add(name, value=value, vary=vary)
+            else:
                 str_answ[name] = value
 
         else:
             args = dict(args[1:])
+            if numeric:     # numeric parameters have a limited number of options
+                vary, minimum, maximum = True, None, None
 
-            try:
-                value = float(value)
-            except ValueError:
-                raise ValueError('Check the value of parameter in: %s' % string)
+                # default for minimun and maximum are None -- leads to (-inf) or (inf) durint fitting
 
-            vary, minimum, maximum = True, True, None
+                for key in args.keys():
+                    if key == 'vary':
+                        if args['vary'].lower() == 'false':
+                            vary = False
+                        elif args['vary'].lower() == 'true':
+                            vary = True
+                        else:
+                            raise ValueError("Check 'vary=' in %s" % string)
 
-            for key in args.keys():
+                    elif key == 'min':
+                        try:
+                            minimum = float(args['min'])
+                        except:
+                            raise ValueError("Check 'min=' in %s" % string)
 
-                if key == 'vary':
-                    if args['vary'].lower() == 'false':
-                        vary = False
-                    elif args['vary'].lower() == 'true':
-                        vary = True
-                    else:
-                        raise ValueError("Check 'vary=' in %s" % string)
+                    elif key == 'max':
+                        try:
+                            maximum = float(args['max'])
+                        except:
+                            raise ValueError("Check 'max=' in %s" % string)
 
-                elif key == 'min':
-                    try:
-                        minimum = float(args['min'])
-                    except:
-                        raise ValueError("Check 'min=' in %s" % string)
+                num_answ.add(name, value=value, vary=vary, min=minimum, max=maximum)
+            else:
+                raise ValueError("Non-numeric parameter can not have another options.\nCheck:\t%s" % string)
 
-                elif key == 'max':
-                    try:
-                        maximum = float(args['max'])
-                    except:
-                        raise ValueError("Check 'max=' in %s" % string)
+    try:
+        a = num_answ['angle_slope']
+    except KeyError:
+        num_answ.add('angle_slope', value=0, vary=True)
 
-            num_answ.add(name, value=float(value), vary=vary, min=minimum, max=maximum)
+    try:
+        a = num_answ['zmin']
+    except KeyError:
+        num_answ.add('zmin', value=0, vary=False)
+
     return num_answ, str_answ
 
 
@@ -114,49 +136,43 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
     """
 
     fin = open(name).read().replace(',', '.').split('\n')  # replace commas by dots to convert to float then
-    fin = [elem for elem in fin if elem[0] != '#']    # delete comment strings
-
+    fin = [elem for elem in fin if elem.strip() != '']  # delete empty lines
+    fin = [elem for elem in fin if elem[0] != '#']  # delete comment strings
+    fin = [elem.split() for elem in fin]
     columns = len(fin[0])
-    fin = np.array(fin)
+    fin = np.array(fin)  # array containing .dat file as numpy array, without comment lines and empty strings
+    # NOTE: fin still contains string values, not float
 
     if columns == 1:
         raise ValueError('.dat file must contain at least two columns')
 
-    x = np.array([elem[0]+bragg for elem in fin])
-    y = np.array([elem[1] for elem in fin])
+    # adds bragg angle -- in case if the measurements are relative to that
+    x = np.array([float(elem[0]) + bragg for elem in fin])
+    y = np.array([float(elem[1]) for elem in fin])
+
+    # if we want to normalize on flux per surface area
+    if normalize:
+        y = y / np.sin(np.deg2rad(x))
 
     try:
         if template == 'xy':
-            if normalize:
-                y = y / np.sin(np.deg2rad(x))
-            else:
-                pass
             answ = x, y
 
         elif template == 'xyyerr':
-            if normalize:
-                y = y / np.sin(np.deg2rad(x))
-            else:
-                pass
-            yerror = np.array([elem[2] for elem in fin])
+            yerror = np.array([float(elem[2]) for elem in fin])
             answ = x, y, yerror
 
         elif template == 'xyy':
-            y1 = np.array([elem[1] for elem in fin])
-            y2 = np.array([elem[2] for elem in fin])
+            y1 = np.array([float(elem[1]) for elem in fin])
+            y2 = np.array([float(elem[2]) for elem in fin])
             y = y1 + y2 / 2.0
             yerror = np.abs(y - y1)
-
-            if normalize:
-                y = y / np.sin(np.deg2rad(x))
-            else:
-                pass
 
             answ = x, y, yerror
 
         elif template == 'xxerryyerr':
-            xerror = np.array([elem[2] for elem in fin])
-            yerror = np.array([elem[3] for elem in fin])
+            xerror = np.array([float(elem[2]) for elem in fin])
+            yerror = np.array([float(elem[3]) for elem in fin])
 
             if normalize:
                 y = y / np.sin(np.deg2rad(x))
@@ -168,17 +184,17 @@ def get_dat(name, normalize=False, bragg=0, template='xy'):
         else:
             raise ValueError('Check the "template" parameter')
 
-    except ValueError:
-        raise ValueError('Check the "template" parameter')
+    except:
+        raise ValueError('Check your .dat file')
 
-    return np.array(answ)
+    return answ
 
 
-def get_grd(name):
-    # TODO: try to locate the first data string
+def get_grd(name, xserver=True):
     """
     Function simply cuts firts 5 strings of the table and returns an intensity table.
     Adjusted to the data coming from http://x-server.gmca.aps.anl.gov/TER_sl.html
+    :param xserver: if True, cuts first 5 strings of .grd file (assuming that it's a standart file from x-server)
     :param name: filename of .grd file
     :rtype: table[angle][distance] returns an intensity at that coordinates
 
@@ -186,15 +202,22 @@ def get_grd(name):
     if name[-4:] != '.grd':
         raise ValueError('Must be the .grd file')
 
-    temp_name = name[:-4] + '_table.grd'
-    fin = open(name).read().split('\n')[5:]     # removes first 5 lines, assuming grd file as x-server's output
+    temp_name = name[:-4] + '_temp_table.grd'
+
+    if xserver:
+        offcet = 5
+    else:
+        offcet = 0
+    fin = open(name).read().split('\n')[offcet:]     # removes first 5 lines, assuming grd file as x-server's output
+
     fout = open(temp_name, mode='w')  # writes only a table to name_table.grd to prevent overwriting
 
     print(*fin, sep='\n', file=fout)
     del fout
     table = np.array(np.loadtxt(temp_name))
 
-    table = np.fliplr(table)
+    if xserver:
+        table = np.fliplr(table)    # now the order within table is "0-100", not "-100-0"
 
     os.remove(temp_name)
 
